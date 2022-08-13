@@ -1,13 +1,11 @@
-﻿using System.Collections.Generic;
-using System.Speech.Synthesis;
-using System.IO;
-using System.Threading;
-using System;
-using System.Threading.Tasks;
-
-using InstanTTS.Audio;
+﻿using InstanTTS.Audio;
 using InstanTTS.Data;
-using System.Windows.Data;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Speech.Synthesis;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 
 namespace InstanTTS.Speech
@@ -43,22 +41,18 @@ namespace InstanTTS.Speech
         private const int MAX_QUEUE_SIZE = 5;
 
         /// <summary>
-        /// The task responsible for managing <see cref="TTSQueue"/>. If there are entries left in the queue, dequeues the next and plays it.
-        /// </summary>
-        private Task _queueTask;
-
-        /// <summary>
         /// Cancellation token used to cancel <see cref="_queueTask"/>.
         /// </summary>
-        private CancellationTokenSource _queueTaskCt;
+        private readonly CancellationTokenSource _queueTaskCt;
 
-        public SpeechSynthManager()
+        public SpeechSynthManager() 
         {
             TTSQueue = new ObservableQueue<SpeechString>();
             TTSHistory = new ObservableQueue<SpeechString>();
             _queueTaskCt = new CancellationTokenSource();
             var token = _queueTaskCt.Token;
-            _queueTask = Task.Run(async () =>
+            
+            Task.Run(async () =>
             {
                 while (true)
                 {
@@ -78,9 +72,13 @@ namespace InstanTTS.Speech
             }, token);
 
             // hack method to get installed voices because there's no direct method of getting these
-            var tmp = new SpeechSynthesizer();
-            Voices = tmp.GetInstalledVoices();
-            tmp.Dispose();
+            var synth = new SpeechSynthesizer();
+
+            SpeechApiReflectionHelper.InjectOneCoreVoices(synth);
+
+            Voices = synth.GetInstalledVoices();
+            
+            synth.Dispose();
 
             Instance = this;
         }
@@ -97,7 +95,8 @@ namespace InstanTTS.Speech
         {
             if (!IsQueueFull())
             {
-                SpeechString data = new SpeechString(text, voice, rate, volume, device1, device2);
+                SpeechString data = new(text, voice, rate, volume, device1, device2);
+                
                 TTSQueue.Enqueue(data);
                 TTSHistory.Enqueue(data);
             }
@@ -120,29 +119,30 @@ namespace InstanTTS.Speech
         private async Task Speak(SpeechString speech)
         {
             // create a new memory stream and speech synth, to be disposed of after this method executes.
-            using (MemoryStream stream = new MemoryStream())
-            using (SpeechSynthesizer synth = new SpeechSynthesizer())
-            {
-                // set synthesizer properties
-                synth.SetOutputToWaveStream(stream);
-                synth.Rate = speech.Rate;
-                synth.Volume = speech.Volume;
+            using MemoryStream stream = new();
+            using SpeechSynthesizer synth = new();
+            
+            SpeechApiReflectionHelper.InjectOneCoreVoices(synth);
 
-                // TODO: refine the speech builder and actually use the style.
-                PromptBuilder builder = new PromptBuilder();
-                PromptStyle style = new PromptStyle();
+            // set synthesizer properties
+            synth.SetOutputToWaveStream(stream);
+            synth.Rate = speech.Rate;
+            synth.Volume = speech.Volume;
 
-                builder.StartVoice(speech.Voice.VoiceInfo);
-                builder.StartSentence();
-                builder.AppendText(speech.Text);
-                builder.EndSentence();
-                builder.EndVoice();
+            // TODO: refine the speech builder and actually use the style.
+            PromptBuilder builder = new();
+            PromptStyle style = new();
 
-                // "speaks" the text directly into the memory stream
-                synth.Speak(builder);
-                // then block while the speech is being played.
-                await AudioManager.Instance.Play(stream, speech.PrimaryDevice.DeviceNumber, speech.SecondaryDevice.DeviceNumber);
-            }
+            builder.StartVoice(speech.Voice.VoiceInfo);
+            builder.StartSentence();
+            builder.AppendText(speech.Text);
+            builder.EndSentence();
+            builder.EndVoice();
+
+            // "speaks" the text directly into the memory stream
+            synth.Speak(builder);
+            // then block while the speech is being played.
+            await AudioManager.Instance.Play(stream, speech.PrimaryDevice.DeviceNumber, speech.SecondaryDevice.DeviceNumber);
         }
 
         public void Dispose()

@@ -1,5 +1,5 @@
-﻿using System.Speech.Synthesis;
-using InstanTTS.Audio;
+﻿using InstanTTS.Audio;
+using System.Speech.Synthesis;
 
 namespace InstanTTS.Speech
 {

@@ -1,9 +1,8 @@
-﻿using System;
-using System.IO;
+﻿using NAudio.Wave;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
-using System.Threading;
-using NAudio.Wave;
 
 namespace InstanTTS.Audio
 {
@@ -33,7 +32,7 @@ namespace InstanTTS.Audio
         public AudioManager()
         {
             // set up output devices
-            List<SoundDevice> outDevices = new List<SoundDevice>();
+            List<SoundDevice> outDevices = new();
             for (int i = -1; i < WaveOut.DeviceCount; i++)
             {
                 WaveOutCapabilities device = WaveOut.GetCapabilities(i);
@@ -43,7 +42,7 @@ namespace InstanTTS.Audio
             OutDevices = outDevices.AsReadOnly();
 
             // set up input devices
-            List<SoundDevice> inDevices = new List<SoundDevice>();
+            List<SoundDevice> inDevices = new();
             for (int i = -1; i < WaveIn.DeviceCount; i++)
             {
                 WaveInCapabilities device = WaveIn.GetCapabilities(i);
@@ -59,7 +58,7 @@ namespace InstanTTS.Audio
         {
             // Make sure the memory stream is read from the start.
             stream.Seek(0, SeekOrigin.Begin);
-            MemoryStream stream2 = new MemoryStream();
+            MemoryStream stream2 = new();
             stream.CopyTo(stream2);
             stream.Seek(0, SeekOrigin.Begin);
             stream2.Seek(0, SeekOrigin.Begin);
